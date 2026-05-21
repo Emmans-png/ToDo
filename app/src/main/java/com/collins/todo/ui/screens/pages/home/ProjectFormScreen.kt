@@ -2,7 +2,9 @@ package com.collins.todo.ui.screens.pages.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -19,7 +21,7 @@ import com.collins.todo.data.Models.ConstructionProject
 import com.collins.todo.data.repository.ConstructionRepository
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ProjectFormScreen(
     projectId: Int? = null,
@@ -62,7 +64,17 @@ fun ProjectFormScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(if (projectId == null) "NEW PROJECT" else "EDIT PROJECT", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary) },
+                title = { 
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            if (projectId == null) "NEW PROJECT" else "EDIT PROJECT", 
+                            fontWeight = FontWeight.Black, 
+                            color = Color.White,
+                            letterSpacing = 2.sp
+                        )
+                        Text("Venture Details", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -77,41 +89,78 @@ fun ProjectFormScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .background(Color.Black)
+                .padding(horizontal = 24.dp)
         ) {
-            ProjectInputField("Project Name", name) { name = it }
-            ProjectInputField("Location", location) { location = it }
-            ProjectInputField("Total Budget ($)", budget) { budget = it }
-            ProjectInputField("Land Cost ($)", landCost) { landCost = it }
-            ProjectInputField("Target Monthly Rental ($)", rentalIncome) { rentalIncome = it }
-            
-            if (projectId != null) {
-                Text("Current Stage", color = MaterialTheme.colorScheme.tertiary, fontSize = 12.sp)
-                val stages = listOf("Foundation", "Walling", "Roofing", "Finishing")
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    stages.forEach { stage ->
-                        val isSelected = currentStage == stage
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { currentStage = stage },
-                            label = { Text(stage, fontSize = 10.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White,
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                labelColor = MaterialTheme.colorScheme.tertiary
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(scrollState)
+                    .padding(vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                ProjectInputField("Project Name", name, Icons.Default.Business) { name = it }
+                ProjectInputField("Location", location, Icons.Default.LocationOn) { location = it }
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        ProjectInputField("Budget ($)", budget, Icons.Default.Payments) { budget = it }
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        ProjectInputField("Land Cost ($)", landCost, Icons.Default.Terrain) { landCost = it }
+                    }
+                }
+                
+                ProjectInputField("Target Monthly Rental ($)", rentalIncome, Icons.Default.MonetizationOn) { rentalIncome = it }
+                
+                if (projectId != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("CURRENT CONSTRUCTION STAGE", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    val stages = listOf("Foundation", "Walling", "Roofing", "Finishing")
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(), 
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        stages.forEach { stage ->
+                            val isSelected = currentStage == stage
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { currentStage = stage },
+                                label = { Text(stage, fontSize = 11.sp) },
+                                shape = RoundedCornerShape(4.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = Color.White.copy(alpha = 0.05f),
+                                    labelColor = Color.Gray,
+                                    disabledContainerColor = Color.Transparent
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = Color.Gray.copy(alpha = 0.3f),
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                                )
                             )
+                        }
+                    }
+                }
+
+                if (errorMessage != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                    ) {
+                        Text(
+                            errorMessage!!, 
+                            color = MaterialTheme.colorScheme.error, 
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(12.dp)
                         )
                     }
                 }
             }
-
-            if (errorMessage != null) {
-                Text(errorMessage!!, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             Button(
                 onClick = {
@@ -148,32 +197,51 @@ fun ProjectFormScreen(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(4.dp),
-                enabled = !isLoading && name.isNotBlank()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+                    .height(56.dp),
+                shape = RoundedCornerShape(8.dp),
+                enabled = !isLoading && name.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = Color.Gray.copy(alpha = 0.2f)
+                )
             ) {
-                if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                else Text(if (projectId == null) "CREATE PROJECT" else "UPDATE PROJECT", fontWeight = FontWeight.Bold)
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(
+                        if (projectId == null) "SAVE VENTURE" else "UPDATE VENTURE", 
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun ProjectInputField(label: String, value: String, onValueChange: (String) -> Unit) {
+fun ProjectInputField(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onValueChange: (String) -> Unit) {
     Column {
-        Text(label, color = MaterialTheme.colorScheme.tertiary, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
-        TextField(
+        OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            label = { Text(label, fontSize = 13.sp) },
+            leadingIcon = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = Color.Gray,
                 focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
+                unfocusedTextColor = Color.White,
+                cursorColor = MaterialTheme.colorScheme.primary
             ),
-            shape = RoundedCornerShape(4.dp)
+            shape = RoundedCornerShape(8.dp),
+            singleLine = true
         )
     }
 }

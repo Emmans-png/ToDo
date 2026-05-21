@@ -4,14 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -182,7 +181,7 @@ fun EditOrderDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextField(value = materialName, onValueChange = { materialName = it }, label = { Text("Material Name") })
-                TextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Quantity") })
+                TextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Qty") })
                 TextField(value = unitPrice, onValueChange = { unitPrice = it }, label = { Text("Unit Price ($)") })
                 TextField(value = supplier, onValueChange = { supplier = it }, label = { Text("Supplier") })
                 TextField(value = earnings, onValueChange = { earnings = it }, label = { Text("Earnings for Driver ($)") })
@@ -228,60 +227,112 @@ fun AddOrderDialog(
     
     AlertDialog(
         onDismissRequest = { viewModel.onDismissAddOrder() },
-        title = { Text("New Material Order", color = Color.White) },
-        containerColor = MaterialTheme.colorScheme.surface,
+        title = { 
+            Column {
+                Text("NEW MATERIAL ORDER", color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp)
+                Text("Logistics Dispatch", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        },
+        containerColor = Color(0xFF1A1A1A), // Slightly lighter than black for depth
+        shape = RoundedCornerShape(16.dp),
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(top = 8.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())
+            ) {
+                // Project Selection
                 if (viewModel.selectedProjectIdForNewOrder == null && viewModel.projects.value.isNotEmpty()) {
-                    Text("Select Project", color = Color.White, fontSize = 12.sp)
                     var expandedProject by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(
-                            onClick = { expandedProject = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(viewModel.projects.value.find { it.id == viewModel.selectedProjectIdForNewOrder }?.name ?: "Select Project")
-                        }
-                        DropdownMenu(expanded = expandedProject, onDismissRequest = { expandedProject = false }) {
-                            viewModel.projects.value.forEach { p ->
-                                DropdownMenuItem(
-                                    text = { Text(p.name) },
-                                    onClick = {
-                                        viewModel.onAddOrderClick(p.id)
-                                        expandedProject = false
-                                    }
-                                )
+                    val selectedProject = viewModel.projects.value.find { it.id == viewModel.selectedProjectIdForNewOrder }
+                    
+                    Column {
+                        Text("SELECT PROJECT", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                        Box {
+                            OutlinedButton(
+                                onClick = { expandedProject = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                                contentPadding = PaddingValues(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(selectedProject?.name ?: "Tap to choose project...", color = if (selectedProject == null) Color.Gray else Color.White, fontSize = 14.sp)
+                                    Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = expandedProject, 
+                                onDismissRequest = { expandedProject = false },
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surface).fillMaxWidth(0.7f)
+                            ) {
+                                viewModel.projects.value.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text(p.name, color = Color.White) },
+                                        onClick = {
+                                            viewModel.onAddOrderClick(p.id)
+                                            expandedProject = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                TextField(value = viewModel.materialName, onValueChange = { viewModel.materialName = it }, label = { Text("Material Name") })
-                TextField(value = viewModel.quantity, onValueChange = { viewModel.quantity = it }, label = { Text("Quantity") })
-                TextField(value = viewModel.unitPrice, onValueChange = { viewModel.unitPrice = it }, label = { Text("Unit Price ($)") })
-                TextField(value = viewModel.earnings, onValueChange = { viewModel.earnings = it }, label = { Text("Transport Earning ($)") })
-                TextField(value = viewModel.supplier, onValueChange = { viewModel.supplier = it }, label = { Text("Supplier") })
+                OrderInputField("Material Name", viewModel.materialName, Icons.Default.Inventory) { viewModel.materialName = it }
                 
-                Text("Required Stage", color = Color.White, fontSize = 12.sp)
-                val stages = listOf("Foundation", "Walling", "Roofing", "Finishing")
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    maxItemsInEachRow = 3
-                ) {
-                    stages.forEach { s ->
-                        FilterChip(
-                            selected = viewModel.requiredStage == s,
-                            onClick = { viewModel.requiredStage = s },
-                            label = { Text(s, fontSize = 10.sp) }
-                        )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        OrderInputField("Qty", viewModel.quantity, Icons.Default.ProductionQuantityLimits) { viewModel.quantity = it }
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        OrderInputField("Price ($)", viewModel.unitPrice, Icons.Default.Payments) { viewModel.unitPrice = it }
+                    }
+                }
+                
+                OrderInputField("Transport Earning ($)", viewModel.earnings, Icons.Default.LocalShipping) { viewModel.earnings = it }
+                OrderInputField("Supplier", viewModel.supplier, Icons.Default.Store) { viewModel.supplier = it }
+                
+                Column {
+                    Text("REQUIRED STAGE", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                    val stages = listOf("Foundation", "Walling", "Roofing", "Finishing")
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        maxItemsInEachRow = 3
+                    ) {
+                        stages.forEach { s ->
+                            val isSelected = viewModel.requiredStage == s
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { viewModel.requiredStage = s },
+                                label = { Text(s, fontSize = 11.sp) },
+                                shape = RoundedCornerShape(4.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = Color.White.copy(alpha = 0.05f),
+                                    labelColor = Color.Gray
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = Color.White.copy(alpha = 0.1f),
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            Column(horizontalAlignment = Alignment.End) {
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(end = 8.dp, bottom = 8.dp)) {
                 viewModel.statusMessage?.let {
                     Text(
                         it, 
@@ -292,22 +343,46 @@ fun AddOrderDialog(
                 }
                 Button(
                     enabled = !viewModel.isSaving && (viewModel.selectedProjectIdForNewOrder != null || viewModel.projects.value.isNotEmpty()) && viewModel.materialName.isNotBlank(),
-                    onClick = { viewModel.createOrder() }
+                    onClick = { viewModel.createOrder() },
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) { 
                     if (viewModel.isSaving) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("Add Order") 
+                    Text("ADD ORDER", fontWeight = FontWeight.Bold) 
                 }
             }
         },
         dismissButton = { 
             TextButton(
                 enabled = !viewModel.isSaving,
-                onClick = { viewModel.onDismissAddOrder() }
-            ) { Text("Cancel") } 
+                onClick = { viewModel.onDismissAddOrder() },
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) { Text("CANCEL", color = Color.Gray, fontWeight = FontWeight.Bold) } 
         }
+    )
+}
+
+@Composable
+fun OrderInputField(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onValueChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label, fontSize = 10.sp) },
+        leadingIcon = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp)) },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = Color.Gray,
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White
+        ),
+        shape = RoundedCornerShape(8.dp),
+        singleLine = true
     )
 }
 
